@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "build-tcp-test",
+        "type": "shell",
+        "command": "./ns3",
+        "args": [
+          "build",
+          "adaptive-tcp-test"
+        ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "options": {
+          "cwd": "${workspaceFolder}/ns-allinone-3.43/ns-3.43"
+        },
+        "problemMatcher": ["$gcc"]
+      }
+    ]
+  }

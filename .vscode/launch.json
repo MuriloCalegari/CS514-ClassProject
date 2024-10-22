@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run ns-3 adaptive-tcp-test",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/ns-allinone-3.43/ns-3.43/build/scratch/adaptive-tcp/ns3.43-adaptive-tcp-test-default",
+        "args": [],
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}/ns-allinone-3.43/ns-3.43",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "lldb",
+        "preLaunchTask": "build-tcp-test",
+        "logging": {
+          "trace": false,
+          "traceResponse": false,
+          "engineLogging": false,
+          "programOutput": true,
+          "exceptions": true
+        },
+        "internalConsoleOptions": "openOnSessionStart"
+      }
+    ]
+  }
