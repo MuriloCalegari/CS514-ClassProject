@@ -31,12 +31,16 @@ NS_LOG_COMPONENT_DEFINE("AdaptiveTcpTest");
 int
 main(int argc, char* argv[])
 {
+    LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_ALL);
+
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
-    double simulationTime = 300.0; // Default to 5 minutes
+    double simulationTime = 60.0; // Default to 1 minutes
+    double senderCount = 10; // Default to 10 senders
 
     CommandLine cmd;
     cmd.AddValue("linkBandwidth", "Bandwidth of the middle link", linkBandwidth);
     cmd.AddValue("simulationTime", "Simulation runtime in seconds", simulationTime);
+    cmd.AddValue("senderCount", "Number of senders", senderCount);
     cmd.Parse(argc, argv);
 
     NodeContainer nodes;
@@ -58,7 +62,7 @@ main(int argc, char* argv[])
     Ipv4InterfaceContainer interfaces = address.Assign(devices);
 
     for (int i = 0; i < CCA_COUNT; i++) {
-        int numSenders = ccaData[i].percentage;
+        int numSenders = ccaData[i].percentage / 100.0 * senderCount;
         for (int j = 0; j < numSenders; j++) {
             // Create sender and receiver nodes
             Ptr<Node> sender = CreateObject<Node>();
@@ -76,9 +80,11 @@ main(int argc, char* argv[])
             Ipv4InterfaceContainer senderReceiverInterfaces;
             senderReceiverInterfaces = address.Assign(senderReceiverDevices);
 
-            // Set TCP type
+            // Set TCP type for the specific sender
             TypeId tcpTypeId = TypeId::LookupByName(ccaData[i].tcpTypeId);
-            Config::Set("/NodeList/*/$ns3::TcpL4Protocol/SocketType", TypeIdValue(tcpTypeId));
+            std::ostringstream path;
+            path << "/NodeList/" << sender->GetId() << "/$ns3::TcpL4Protocol/SocketType";
+            Config::Set(path.str(), TypeIdValue(tcpTypeId));
 
             // Create and install applications
             uint16_t port = 9;
@@ -94,7 +100,9 @@ main(int argc, char* argv[])
             apps.Stop(Seconds(simulationTime)); // Use the simulationTime parameter
         }
     }
-
+    
+    NS_LOG_INFO("Starting the simulation with runtime of " << simulationTime << "s...");
+    Simulator::Stop(Seconds(simulationTime + 5));
     Simulator::Run();
     Simulator::Destroy();
 

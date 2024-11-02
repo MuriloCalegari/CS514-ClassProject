@@ -29,3 +29,14 @@ static const std::array<CCAData, CCA_COUNT> ccaData = {
     CCAData{6, "ns3::TcpVegas"},     // Vegas
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
+
+// static const std::array<CCAData, CCA_COUNT> ccaData = {
+//     CCAData{0, "ns3::TcpBbr"},      // BBRv1
+//     CCAData{0, "ns3::TcpBic"},       // BIC
+//     CCAData{1, "ns3::TcpCubic"},    // CUBIC
+//     CCAData{0, "ns3::TcpHtcp"},      // HTCP
+//     CCAData{0, "ns3::TcpIllinois"},  // Illinois
+//     CCAData{0, "ns3::TcpNewReno"},  // NewReno
+//     CCAData{6, "ns3::TcpVegas"},     // Vegas
+//     CCAData{1, "ns3::TcpVeno"}       // Veno
+// };
