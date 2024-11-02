@@ -14,6 +14,7 @@ build_exec(
                     ${libinternet}
                     ${libpoint-to-point}
                     ${libapplications}
+                    ${libnetanim}
   # use "${ns3-libs}" "${ns3-contrib-libs}" in case you want to link to all
   # enabled modules
   EXECUTABLE_DIRECTORY_PATH ${CMAKE_OUTPUT_DIRECTORY}/scratch/adaptive-tcp

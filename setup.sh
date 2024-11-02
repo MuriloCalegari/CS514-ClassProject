@@ -5,6 +5,7 @@ brew update
 
 # Install CMake using Homebrew
 brew install cmake
+brew install qt
 
 # Verify the installation
 if brew list cmake &>/dev/null; then

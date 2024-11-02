@@ -16,3 +16,10 @@ Alternatively, you may run the ns3 file directly with:
 cd ./ns-allinone-3.43/ns-3.43
 ./ns3 run adaptive-tcp-test
 ```
+
+If you encounter any errors building the project, consider cleaning the build directory:
+
+```
+./ns3 clean
+./ns3 configure
+```
