@@ -24,6 +24,7 @@
 #include "ns3/applications-module.h"
 #include "ns3/netanim-module.h"
 #include "adaptive-tcp-test.h"
+// #include "ns3/mpi-interface.h"
 
 using namespace ns3;
 
@@ -32,7 +33,8 @@ NS_LOG_COMPONENT_DEFINE("AdaptiveTcpTest");
 int
 main(int argc, char* argv[])
 {
-    LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_ALL);
+    // // Initialize MPI
+    // MpiInterface::Enable(&argc, &argv);
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
@@ -82,52 +84,22 @@ main(int argc, char* argv[])
 
             if (senderIndex >= senderCount) break;  // Prevent going beyond available senders
 
-            // Connect each sender to bottleneck.Get(0)
-            PointToPointHelper senderLink;
-            senderLink.SetDeviceAttribute("DataRate", StringValue("10Gbps")); // High bandwidth for sender links
-            senderLink.SetChannelAttribute("Delay", StringValue("1ms"));
-            NetDeviceContainer senderDevices = senderLink.Install(senders.Get(senderIndex), bottleneck.Get(0));
-
-            // Assign IPs for sender links
-            address.SetBase(("10.2." + std::to_string(senderIndex) + ".0").c_str(), "255.255.255.0");
-            Ipv4InterfaceContainer senderInterfaces = address.Assign(senderDevices);
-
-            // Connect each receiver to bottleneck.Get(1)
-            PointToPointHelper receiverLink;
-            receiverLink.SetDeviceAttribute("DataRate", StringValue("10Gbps")); // High bandwidth for receiver links
-            receiverLink.SetChannelAttribute("Delay", StringValue("1ms"));
-            NetDeviceContainer receiverDevices = receiverLink.Install(bottleneck.Get(1), receivers.Get(senderIndex));
-
-            // Assign IPs for receiver links
-            address.SetBase(("10.3." + std::to_string(senderIndex) + ".0").c_str(), "255.255.255.0");
-            Ipv4InterfaceContainer receiverInterfaces = address.Assign(receiverDevices);
-
-            // Set TCP type for the specific sender based on ccaData
-            TypeId tcpTypeId = TypeId::LookupByName(ccaData[i].tcpTypeId);
-            std::ostringstream path;
-            path << "/NodeList/" << "ns3::TcpNewReno" << "/$ns3::TcpL4Protocol/SocketType";
-            Config::Set(path.str(), TypeIdValue(tcpTypeId));
-
-            // Set up applications
-            uint16_t port = 9;
-
-            // BulkSend application on sender side
-            BulkSendHelper bulkSend("ns3::TcpSocketFactory", InetSocketAddress(receiverInterfaces.GetAddress(1), port));
-            bulkSend.SetAttribute("MaxBytes", UintegerValue(0));
-            ApplicationContainer senderApps = bulkSend.Install(senders.Get(senderIndex));
-            senderApps.Start(Seconds(1.0));
-            senderApps.Stop(Seconds(simulationTime));
-
-            // PacketSink application on receiver side to act as sink
-            PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), port));
-            ApplicationContainer receiverApps = sink.Install(receivers.Get(senderIndex));
-            receiverApps.Start(Seconds(1.0));
-            receiverApps.Stop(Seconds(simulationTime));
+            ns3::Ptr<ns3::Node> sender = senders.Get(senderIndex);
+            ns3::Ptr<ns3::Node> receiver = receivers.Get(senderIndex);
+            
+            setPairGoingThroughLink(sender,
+                                    bottleneck,
+                                    receiver,
+                                    simulationTime,
+                                    senderIndex,
+                                    TypeId::LookupByName(ccaData[i].tcpTypeId));
 
             senderIndex++;  // Move to the next sender-receiver pair
         }
     }
-    
+
+    // Add our custom CCA
+
     NS_LOG_INFO("Initialize Global Routing.");
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
@@ -138,6 +110,69 @@ main(int argc, char* argv[])
     Simulator::Stop(Seconds(simulationTime + 5));
     Simulator::Run();
     Simulator::Destroy();
+    NS_LOG_INFO("Simulation completed.");
+
+    // // Finalize MPI
+    // MpiInterface::Disable();
 
     return 0;
+}
+
+void
+setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
+                        ns3::NodeContainer& bottleneck,
+                        ns3::Ptr<ns3::Node> receiver,
+                        double simulationTime,
+                        int senderIndex,
+                        ns3::TypeId tcpTypeId)
+{
+    Ipv4AddressHelper address;
+    
+    // Connect each sender to bottleneck.Get(0)
+    PointToPointHelper senderLink;
+    senderLink.SetDeviceAttribute("DataRate",
+                                  StringValue("10Gbps")); // High bandwidth for sender links
+    senderLink.SetChannelAttribute("Delay", StringValue("1ms"));
+    NetDeviceContainer senderDevices =
+        senderLink.Install(sender, bottleneck.Get(0));
+
+    // Assign IPs for sender links
+    address.SetBase(("10.2." + std::to_string(senderIndex) + ".0").c_str(), "255.255.255.0");
+    Ipv4InterfaceContainer senderInterfaces = address.Assign(senderDevices);
+
+    // Connect each receiver to bottleneck.Get(1)
+    PointToPointHelper receiverLink;
+    receiverLink.SetDeviceAttribute("DataRate",
+                                    StringValue("10Gbps")); // High bandwidth for receiver links
+    receiverLink.SetChannelAttribute("Delay", StringValue("1ms"));
+    NetDeviceContainer receiverDevices =
+        receiverLink.Install(bottleneck.Get(1), receiver);
+
+    // Assign IPs for receiver links
+    address.SetBase(("10.3." + std::to_string(senderIndex) + ".0").c_str(), "255.255.255.0");
+    Ipv4InterfaceContainer receiverInterfaces = address.Assign(receiverDevices);
+
+    // Set TCP type for the specific sender based on ccaData
+    // TypeId tcpTypeId = TypeId::LookupByName(ccaData[i].tcpTypeId);
+    std::ostringstream path;
+    // TODO is this right?
+    path << "/NodeList/" << "ns3::TcpNewReno" << "/$ns3::TcpL4Protocol/SocketType";
+    Config::Set(path.str(), TypeIdValue(tcpTypeId));
+
+    // Set up applications
+    uint16_t port = 9;
+
+    // BulkSend application on sender side
+    BulkSendHelper bulkSend("ns3::TcpSocketFactory",
+                            InetSocketAddress(receiverInterfaces.GetAddress(1), port));
+    bulkSend.SetAttribute("MaxBytes", UintegerValue(0));
+    ApplicationContainer senderApps = bulkSend.Install(sender);
+    senderApps.Start(Seconds(1.0));
+    senderApps.Stop(Seconds(simulationTime));
+
+    // PacketSink application on receiver side to act as sink
+    PacketSinkHelper sink("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), port));
+    ApplicationContainer receiverApps = sink.Install(receiver);
+    receiverApps.Start(Seconds(1.0));
+    receiverApps.Stop(Seconds(simulationTime));
 }

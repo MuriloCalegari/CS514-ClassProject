@@ -1,5 +1,7 @@
 #include <string>
 #include <array>
+#include "ns3/node-container.h"
+#include "ns3/ipv4-address-helper.h"
 
 // Enum for CCA constants
 enum CCA {
@@ -29,3 +31,10 @@ static const std::array<CCAData, CCA_COUNT> ccaData = {
     CCAData{6, "ns3::TcpVegas"},     // Vegas
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
+
+void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
+                             ns3::NodeContainer& bottleneck,
+                             ns3::Ptr<ns3::Node> receiver,
+                             double simulationTime,
+                             int senderIndex,
+                             ns3::TypeId tcpTypeId);
