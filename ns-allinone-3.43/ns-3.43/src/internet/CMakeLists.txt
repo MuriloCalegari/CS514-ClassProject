@@ -126,6 +126,7 @@ set(source_files
     model/udp-socket-factory.cc
     model/udp-socket-impl.cc
     model/udp-socket.cc
+    model/adaptive-tcp.cc
 )
 
 set(header_files
@@ -249,6 +250,7 @@ set(header_files
     model/udp-socket-factory.h
     model/udp-socket.h
     model/windowed-filter.h
+    model/adaptive-tcp.h
 )
 
 set(private_header_files)

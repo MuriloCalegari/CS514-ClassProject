@@ -3,6 +3,8 @@
 #include "ns3/node-container.h"
 #include "ns3/ipv4-address-helper.h"
 
+using namespace ns3;
+
 // Enum for CCA constants
 enum CCA {
     BBRv1,
@@ -32,9 +34,15 @@ static const std::array<CCAData, CCA_COUNT> ccaData = {
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
 
+struct FlowData {
+    Ptr<PacketSink> sink;  // Pointer to the PacketSink application
+    std::string cca;       // Name of the CCA used
+};
+
 void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              ns3::NodeContainer& bottleneck,
                              ns3::Ptr<ns3::Node> receiver,
                              double simulationTime,
                              int senderIndex,
-                             ns3::TypeId tcpTypeId);
+                             ns3::TypeId tcpTypeId,
+                             std::vector<FlowData>& flowData);

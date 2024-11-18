@@ -26,6 +26,8 @@
 #include "adaptive-tcp-test.h"
 // #include "ns3/mpi-interface.h"
 
+#include <vector>
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("AdaptiveTcpTest");
@@ -35,6 +37,10 @@ main(int argc, char* argv[])
 {
     // // Initialize MPI
     // MpiInterface::Enable(&argc, &argv);
+
+    LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_INFO);
+    // LogComponentEnable("AdaptiveTcp", LOG_LEVEL_INFO);
+    LogComponentEnable("AdaptiveTcp", LOG_LEVEL_WARN);
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
@@ -48,10 +54,11 @@ main(int argc, char* argv[])
 
     // Create sender, receiver, and bottleneck nodes
     // Create nodes
+    NS_LOG_INFO("Creating nodes.");
     NodeContainer senders, bottleneck, receivers;
-    senders.Create(senderCount);
+    senders.Create(senderCount + 1);
     bottleneck.Create(2);  // bottleneck.Get(0) is left, bottleneck.Get(1) is right
-    receivers.Create(senderCount);
+    receivers.Create(senderCount + 1);
 
     // Connect each sender to the bottleneck and each receiver to the bottleneck
     InternetStackHelper stack;
@@ -74,6 +81,8 @@ main(int argc, char* argv[])
 
     int senderIndex = 0; // Index to keep track of sender-receiver pairs
     
+    std::vector<FlowData> flowData;
+    
     // Install the competing congestion control algorithms    
     for (int i = 0; i < CCA_COUNT; i++) {
         int numSenders = ccaData[i].percentage / 100.0 * senderCount;
@@ -92,25 +101,43 @@ main(int argc, char* argv[])
                                     receiver,
                                     simulationTime,
                                     senderIndex,
-                                    TypeId::LookupByName(ccaData[i].tcpTypeId));
+                                    TypeId::LookupByName(ccaData[i].tcpTypeId),
+                                    flowData);
 
             senderIndex++;  // Move to the next sender-receiver pair
         }
     }
 
-    // Add our custom CCA
+    // Add our custom CCA, AdaptiveTCP
+    setPairGoingThroughLink(senders.Get(senderIndex),
+                            bottleneck,
+                            receivers.Get(senderIndex),
+                            simulationTime,
+                            senderIndex,
+                            TypeId::LookupByName("ns3::AdaptiveTcp"),
+                            flowData);
 
     NS_LOG_INFO("Initialize Global Routing.");
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
     // Enable NetAnim
-    AnimationInterface anim("adaptive-tcp-test.xml");
+    // AnimationInterface anim("adaptive-tcp-test.xml");
     
     NS_LOG_INFO("Starting the simulation with runtime of " << simulationTime << "s...");
     Simulator::Stop(Seconds(simulationTime + 5));
+
+    ShowProgress progress (Seconds (5), std::cerr);
+
     Simulator::Run();
     Simulator::Destroy();
     NS_LOG_INFO("Simulation completed.");
+
+    // Compute throughput for each flow
+    for (const auto& fd : flowData) {
+        double bytesReceived = fd.sink->GetTotalRx();
+        double throughput = (bytesReceived * 8) / (simulationTime * 1e6); // Throughput in Mbps
+        std::cout << "CCA: " << fd.cca << ", Throughput: " << throughput << " Mbps" << std::endl;
+    }
 
     // // Finalize MPI
     // MpiInterface::Disable();
@@ -124,7 +151,8 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                         ns3::Ptr<ns3::Node> receiver,
                         double simulationTime,
                         int senderIndex,
-                        ns3::TypeId tcpTypeId)
+                        ns3::TypeId tcpTypeId,
+                        std::vector<FlowData>& flowData)
 {
     Ipv4AddressHelper address;
     
@@ -153,11 +181,8 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     Ipv4InterfaceContainer receiverInterfaces = address.Assign(receiverDevices);
 
     // Set TCP type for the specific sender based on ccaData
-    // TypeId tcpTypeId = TypeId::LookupByName(ccaData[i].tcpTypeId);
-    std::ostringstream path;
-    // TODO is this right?
-    path << "/NodeList/" << "ns3::TcpNewReno" << "/$ns3::TcpL4Protocol/SocketType";
-    Config::Set(path.str(), TypeIdValue(tcpTypeId));
+    Config::Set("/NodeList/" + std::to_string(sender->GetId()) + "/$ns3::TcpL4Protocol/SocketType",
+                TypeIdValue(tcpTypeId));
 
     // Set up applications
     uint16_t port = 9;
@@ -175,4 +200,10 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     ApplicationContainer receiverApps = sink.Install(receiver);
     receiverApps.Start(Seconds(1.0));
     receiverApps.Stop(Seconds(simulationTime));
+
+    // Get a pointer to the PacketSink application
+    Ptr<PacketSink> pktSink = DynamicCast<PacketSink>(receiverApps.Get(0));
+
+    // Store flow data
+    flowData.push_back({pktSink, tcpTypeId.GetName()});
 }

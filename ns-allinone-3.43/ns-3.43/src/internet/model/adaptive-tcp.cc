@@ -10,55 +10,55 @@
         std::clog << Simulator::Now().GetSeconds() << " ";                                         \
     }
 
-#include "tcp-cubic.h"
+#include "adaptive-tcp.h"
 
 #include "ns3/log.h"
 
-NS_LOG_COMPONENT_DEFINE("TcpCubic");
+NS_LOG_COMPONENT_DEFINE("AdaptiveTcp");
 
 namespace ns3
 {
 
-NS_OBJECT_ENSURE_REGISTERED(TcpCubic);
+NS_OBJECT_ENSURE_REGISTERED(AdaptiveTcp);
 
 TypeId
-TcpCubic::GetTypeId()
+AdaptiveTcp::GetTypeId()
 {
     static TypeId tid =
-        TypeId("ns3::TcpCubic")
+        TypeId("ns3::AdaptiveTcp")
             .SetParent<TcpCongestionOps>()
-            .AddConstructor<TcpCubic>()
+            .AddConstructor<AdaptiveTcp>()
             .SetGroupName("Internet")
             .AddAttribute("FastConvergence",
                           "Enable (true) or disable (false) fast convergence",
                           BooleanValue(true),
-                          MakeBooleanAccessor(&TcpCubic::m_fastConvergence),
+                          MakeBooleanAccessor(&AdaptiveTcp::m_fastConvergence),
                           MakeBooleanChecker())
             .AddAttribute("TcpFriendliness",
                           "Enable (true) or disable (false) TCP friendliness",
                           BooleanValue(true),
-                          MakeBooleanAccessor(&TcpCubic::m_tcpFriendliness),
+                          MakeBooleanAccessor(&AdaptiveTcp::m_tcpFriendliness),
                           MakeBooleanChecker())
             .AddAttribute("Beta",
                           "Beta for multiplicative decrease",
                           DoubleValue(0.7),
-                          MakeDoubleAccessor(&TcpCubic::m_beta),
+                          MakeDoubleAccessor(&AdaptiveTcp::m_beta),
                           MakeDoubleChecker<double>(0.0))
             .AddAttribute("HyStart",
                           "Enable (true) or disable (false) hybrid slow start algorithm",
                           BooleanValue(true),
-                          MakeBooleanAccessor(&TcpCubic::m_hystart),
+                          MakeBooleanAccessor(&AdaptiveTcp::m_hystart),
                           MakeBooleanChecker())
             .AddAttribute("HyStartLowWindow",
                           "Lower bound cWnd for hybrid slow start (segments)",
                           UintegerValue(16),
-                          MakeUintegerAccessor(&TcpCubic::m_hystartLowWindow),
+                          MakeUintegerAccessor(&AdaptiveTcp::m_hystartLowWindow),
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("HyStartDetect",
                           "Hybrid Slow Start detection mechanisms:"
                           "packet train, delay, both",
                           EnumValue(HybridSSDetectionMode::BOTH),
-                          MakeEnumAccessor<HybridSSDetectionMode>(&TcpCubic::m_hystartDetect),
+                          MakeEnumAccessor<HybridSSDetectionMode>(&AdaptiveTcp::m_hystartDetect),
                           MakeEnumChecker(HybridSSDetectionMode::PACKET_TRAIN,
                                           "PACKET_TRAIN",
                                           HybridSSDetectionMode::DELAY,
@@ -68,27 +68,27 @@ TcpCubic::GetTypeId()
             .AddAttribute("HyStartMinSamples",
                           "Number of delay samples for detecting the increase of delay",
                           UintegerValue(8),
-                          MakeUintegerAccessor(&TcpCubic::m_hystartMinSamples),
+                          MakeUintegerAccessor(&AdaptiveTcp::m_hystartMinSamples),
                           MakeUintegerChecker<uint8_t>())
             .AddAttribute("HyStartAckDelta",
                           "Spacing between ack's indicating train",
                           TimeValue(MilliSeconds(2)),
-                          MakeTimeAccessor(&TcpCubic::m_hystartAckDelta),
+                          MakeTimeAccessor(&AdaptiveTcp::m_hystartAckDelta),
                           MakeTimeChecker())
             .AddAttribute("HyStartDelayMin",
                           "Minimum time for hystart algorithm",
                           TimeValue(MilliSeconds(4)),
-                          MakeTimeAccessor(&TcpCubic::m_hystartDelayMin),
+                          MakeTimeAccessor(&AdaptiveTcp::m_hystartDelayMin),
                           MakeTimeChecker())
             .AddAttribute("HyStartDelayMax",
                           "Maximum time for hystart algorithm",
                           TimeValue(MilliSeconds(1000)),
-                          MakeTimeAccessor(&TcpCubic::m_hystartDelayMax),
+                          MakeTimeAccessor(&AdaptiveTcp::m_hystartDelayMax),
                           MakeTimeChecker())
             .AddAttribute("CubicDelta",
                           "Delta Time to wait after fast recovery before adjusting param",
                           TimeValue(MilliSeconds(10)),
-                          MakeTimeAccessor(&TcpCubic::m_cubicDelta),
+                          MakeTimeAccessor(&AdaptiveTcp::m_cubicDelta),
                           MakeTimeChecker())
             .AddAttribute("CntClamp",
                           "Counter value when no losses are detected (counter is used"
@@ -96,17 +96,17 @@ TcpCubic::GetTypeId()
                           " floating point arithmetic). It is the modulo of the (avoided)"
                           " division",
                           UintegerValue(20),
-                          MakeUintegerAccessor(&TcpCubic::m_cntClamp),
+                          MakeUintegerAccessor(&AdaptiveTcp::m_cntClamp),
                           MakeUintegerChecker<uint8_t>())
             .AddAttribute("C",
                           "Cubic Scaling factor",
                           DoubleValue(0.4),
-                          MakeDoubleAccessor(&TcpCubic::m_c),
+                          MakeDoubleAccessor(&AdaptiveTcp::m_c),
                           MakeDoubleChecker<double>(0.0));
     return tid;
 }
 
-TcpCubic::TcpCubic()
+AdaptiveTcp::AdaptiveTcp()
     : TcpCongestionOps(),
       m_cWndCnt(0),
       m_lastMaxCwnd(0),
@@ -125,7 +125,7 @@ TcpCubic::TcpCubic()
     NS_LOG_FUNCTION(this);
 }
 
-TcpCubic::TcpCubic(const TcpCubic& sock)
+AdaptiveTcp::AdaptiveTcp(const AdaptiveTcp& sock)
     : TcpCongestionOps(sock),
       m_fastConvergence(sock.m_fastConvergence),
       m_beta(sock.m_beta),
@@ -157,19 +157,19 @@ TcpCubic::TcpCubic(const TcpCubic& sock)
 }
 
 std::string
-TcpCubic::GetName() const
+AdaptiveTcp::GetName() const
 {
-    return "TcpCubic";
+    return "AdaptiveTcp";
 }
 
 void
-TcpCubic::Init(Ptr<TcpSocketState> tcb)
+AdaptiveTcp::Init(Ptr<TcpSocketState> tcb)
 {
     HystartReset(tcb);
 }
 
 void
-TcpCubic::HystartReset(Ptr<const TcpSocketState> tcb)
+AdaptiveTcp::HystartReset(Ptr<const TcpSocketState> tcb)
 {
     NS_LOG_FUNCTION(this);
 
@@ -180,7 +180,7 @@ TcpCubic::HystartReset(Ptr<const TcpSocketState> tcb)
 }
 
 void
-TcpCubic::IncreaseWindow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
+AdaptiveTcp::IncreaseWindow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
     NS_LOG_FUNCTION(this << tcb << segmentsAcked);
 
@@ -239,7 +239,7 @@ TcpCubic::IncreaseWindow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 }
 
 uint32_t
-TcpCubic::Update(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
+AdaptiveTcp::Update(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
     NS_LOG_FUNCTION(this);
     Time t;
@@ -349,7 +349,7 @@ TcpCubic::Update(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 }
 
 void
-TcpCubic::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt)
+AdaptiveTcp::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt)
 {
     NS_LOG_FUNCTION(this << tcb << segmentsAcked << rtt);
 
@@ -374,7 +374,7 @@ TcpCubic::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time&
 }
 
 void
-TcpCubic::HystartUpdate(Ptr<TcpSocketState> tcb, const Time& delay)
+AdaptiveTcp::HystartUpdate(Ptr<TcpSocketState> tcb, const Time& delay)
 {
     NS_LOG_FUNCTION(this << delay);
 
@@ -429,7 +429,7 @@ TcpCubic::HystartUpdate(Ptr<TcpSocketState> tcb, const Time& delay)
 }
 
 Time
-TcpCubic::HystartDelayThresh(const Time& t) const
+AdaptiveTcp::HystartDelayThresh(const Time& t) const
 {
     NS_LOG_FUNCTION(this << t);
 
@@ -447,7 +447,7 @@ TcpCubic::HystartDelayThresh(const Time& t) const
 }
 
 uint32_t
-TcpCubic::GetSsThresh(Ptr<const TcpSocketState> tcb, uint32_t bytesInFlight)
+AdaptiveTcp::GetSsThresh(Ptr<const TcpSocketState> tcb, uint32_t bytesInFlight)
 {
     NS_LOG_FUNCTION(this << tcb << bytesInFlight);
 
@@ -476,7 +476,7 @@ TcpCubic::GetSsThresh(Ptr<const TcpSocketState> tcb, uint32_t bytesInFlight)
 }
 
 void
-TcpCubic::CongestionStateSet(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCongState_t newState)
+AdaptiveTcp::CongestionStateSet(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCongState_t newState)
 {
     NS_LOG_FUNCTION(this << tcb << newState);
 
@@ -488,7 +488,7 @@ TcpCubic::CongestionStateSet(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpC
 }
 
 void
-TcpCubic::CubicReset(Ptr<const TcpSocketState> tcb)
+AdaptiveTcp::CubicReset(Ptr<const TcpSocketState> tcb)
 {
     NS_LOG_FUNCTION(this << tcb);
 
@@ -501,10 +501,10 @@ TcpCubic::CubicReset(Ptr<const TcpSocketState> tcb)
 }
 
 Ptr<TcpCongestionOps>
-TcpCubic::Fork()
+AdaptiveTcp::Fork()
 {
     NS_LOG_FUNCTION(this);
-    return CopyObject<TcpCubic>(this);
+    return CopyObject<AdaptiveTcp>(this);
 }
 
 } // namespace ns3

@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TCPCUBIC_H
-#define TCPCUBIC_H
+#ifndef AdaptiveTcp_H
+#define AdaptiveTcp_H
 
 #include "tcp-congestion-ops.h"
 #include "tcp-socket-base.h"
@@ -55,7 +55,7 @@ namespace ns3
  *
  * More information on this implementation: http://dl.acm.org/citation.cfm?id=2756518
  */
-class TcpCubic : public TcpCongestionOps
+class AdaptiveTcp : public TcpCongestionOps
 {
   public:
     /**
@@ -74,13 +74,13 @@ class TcpCubic : public TcpCongestionOps
      */
     static TypeId GetTypeId();
 
-    TcpCubic();
+    AdaptiveTcp();
 
     /**
      * Copy constructor
      * \param sock Socket to copy
      */
-    TcpCubic(const TcpCubic& sock);
+    AdaptiveTcp(const AdaptiveTcp& sock);
 
     std::string GetName() const override;
     void PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt) override;
@@ -172,4 +172,4 @@ class TcpCubic : public TcpCongestionOps
 
 } // namespace ns3
 
-#endif // TCPCUBIC_H
+#endif // AdaptiveTcp_H
