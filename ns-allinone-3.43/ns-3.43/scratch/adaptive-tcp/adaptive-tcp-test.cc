@@ -24,6 +24,7 @@
 #include "ns3/applications-module.h"
 #include "ns3/netanim-module.h"
 #include "adaptive-tcp-test.h"
+#include "lib/json.h"
 // #include "ns3/mpi-interface.h"
 
 #include <vector>
@@ -139,6 +140,30 @@ main(int argc, char* argv[])
         NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
     }
 
+    // Serialize the information in flowdata to a json file using the nlohmann json library
+    nlohmann::json j;
+    for (const auto& fd : flowData) {
+        nlohmann::json flow;
+        flow["cca"] = fd->cca;
+
+        for (const auto& dp : fd->stats.throughputs) {
+            flow["throughputs"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.cwnds) {
+            flow["cwnds"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.rtts) {
+            flow["rtts"].push_back({dp.time, dp.value});
+        }
+
+        j.push_back(flow);
+    }
+
+    std::ofstream o("adaptive-tcp-test.json");
+    o << std::setw(4) << j << std::endl;
+
     // // Finalize MPI
     // MpiInterface::Disable();
 
@@ -249,16 +274,14 @@ static void
 CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd)
 {
     Time now = Simulator::Now();
-    flow->stats.times.push_back(now.GetSeconds());
-    flow->stats.cwnds.push_back(newCwnd);
+    flow->stats.cwnds.push_back({now.GetSeconds(), newCwnd});
 }
 
 void
 RttTracer(FlowData* flow, Time oldRtt, Time newRtt)
 {
     Time now = Simulator::Now();
-    flow->stats.times.push_back(now.GetSeconds());
-    flow->stats.rtts.push_back(newRtt.GetSeconds());
+    flow->stats.rtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newRtt.GetMilliSeconds())});
 }
 
 void
@@ -271,8 +294,7 @@ CalculateThroughput(FlowData* flow, double interval, double simulationTime)
     double throughput = (totalBytes - lastTotalRx[flow->sink]) * 8 / (interval * 1e6); // Mbps
 
     // Collect data
-    flow->stats.times.push_back(now.GetSeconds());
-    flow->stats.throughputs.push_back(throughput);
+    flow->stats.throughputs.push_back({now.GetSeconds(), static_cast<uint32_t>(throughput)});
 
     lastTotalRx[flow->sink] = totalBytes;
 

@@ -34,12 +34,18 @@ static const std::array<CCAData, CCA_COUNT> ccaData = {
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
 
+struct DataPoint {
+    double time;
+    uint32_t value;  // Change from double to uint32_t
+
+    DataPoint(double t, uint32_t v) : time(t), value(v) {}
+};
+
 struct FlowStats {
     std::string cca;
-    std::vector<double> times;
-    std::vector<double> throughputs;
-    std::vector<uint32_t> cwnds;
-    std::vector<double> rtts;
+    std::vector<DataPoint> rtts;
+    std::vector<DataPoint> throughputs;
+    std::vector<DataPoint> cwnds;
 };
 
 struct FlowData {
