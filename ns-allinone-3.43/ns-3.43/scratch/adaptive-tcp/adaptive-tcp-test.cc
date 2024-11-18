@@ -140,21 +140,36 @@ main(int argc, char* argv[])
         NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
     }
 
+    saveFlowDataToJson(flowData);
+
+    // // Finalize MPI
+    // MpiInterface::Disable();
+
+    return 0;
+}
+
+void
+saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData)
+{
     // Serialize the information in flowdata to a json file using the nlohmann json library
     nlohmann::json j;
-    for (const auto& fd : flowData) {
+    for (const auto& fd : flowData)
+    {
         nlohmann::json flow;
         flow["cca"] = fd->cca;
 
-        for (const auto& dp : fd->stats.throughputs) {
+        for (const auto& dp : fd->stats.throughputs)
+        {
             flow["throughputs"].push_back({dp.time, dp.value});
         }
 
-        for (const auto& dp : fd->stats.cwnds) {
+        for (const auto& dp : fd->stats.cwnds)
+        {
             flow["cwnds"].push_back({dp.time, dp.value});
         }
 
-        for (const auto& dp : fd->stats.rtts) {
+        for (const auto& dp : fd->stats.rtts)
+        {
             flow["rtts"].push_back({dp.time, dp.value});
         }
 
@@ -163,11 +178,6 @@ main(int argc, char* argv[])
 
     std::ofstream o("adaptive-tcp-test.json");
     o << std::setw(4) << j << std::endl;
-
-    // // Finalize MPI
-    // MpiInterface::Disable();
-
-    return 0;
 }
 
 void
@@ -237,12 +247,12 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     NS_ASSERT_MSG(flow->app, "BulkSendApplication not found");
 
     // Schedule throughput calculation
-    // double interval = 1.0; // Interval in seconds
-    // Simulator::Schedule(Seconds(1.0 + interval), &CalculateThroughput, &flow, interval, simulationTime);
+    double interval = 1.0; // Interval in seconds
+    Simulator::Schedule(Seconds(0), &CalculateThroughput, flow.get(), interval, simulationTime);
 
     // **Connect the cwnd and RTT trace sources**
     // ConnectTraceSources(sender, &flow, senderIndex);
-    Simulator::Schedule(Seconds(1.1), &ConnectTraceSources, sender, flow.get(), senderIndex);
+    Simulator::Schedule(Seconds(0), &ConnectTraceSources, sender, flow.get(), senderIndex);
 
     // Store the flow data
     flowData.push_back(flow);
@@ -287,16 +297,14 @@ RttTracer(FlowData* flow, Time oldRtt, Time newRtt)
 void
 CalculateThroughput(FlowData* flow, double interval, double simulationTime)
 {
-    static std::map<Ptr<PacketSink>, uint64_t> lastTotalRx;
-
     Time now = Simulator::Now();
     uint64_t totalBytes = flow->sink->GetTotalRx();
-    double throughput = (totalBytes - lastTotalRx[flow->sink]) * 8 / (interval * 1e6); // Mbps
+    double throughput = (totalBytes - flow->lastTotalRx) * 8 / (interval * 1e3); // Kbps
 
     // Collect data
     flow->stats.throughputs.push_back({now.GetSeconds(), static_cast<uint32_t>(throughput)});
 
-    lastTotalRx[flow->sink] = totalBytes;
+    flow->lastTotalRx = totalBytes;
 
     // Schedule next throughput calculation
     if (now.GetSeconds() < simulationTime) {

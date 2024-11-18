@@ -53,6 +53,7 @@ struct FlowData {
     std::string cca;       // Name of the CCA used
     Ptr<BulkSendApplication> app;
     FlowStats stats;
+    uint64_t lastTotalRx = 0;  // Add this field to store the last total received bytes
 };
 
 void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
@@ -62,6 +63,8 @@ void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              int senderIndex,
                              ns3::TypeId tcpTypeId,
                              std::vector<std::shared_ptr<FlowData>>& flowData);
+
+void saveFlowDataToJson(std::__1::vector<std::__1::shared_ptr<FlowData>> &flowData);
 
 static void
 CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd);
