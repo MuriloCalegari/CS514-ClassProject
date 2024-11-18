@@ -11,6 +11,11 @@ add_library(
 
 # include_directories(src/internet)
 
+# add_library(
+#   nlohmann_json,
+#   lib/nlohmann_json/json.hpp
+# )
+
 # Link the custom library to the scratch executable
 build_exec(
   EXECNAME adaptive-tcp-test

@@ -38,7 +38,7 @@ main(int argc, char* argv[])
     // // Initialize MPI
     // MpiInterface::Enable(&argc, &argv);
 
-    LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_INFO);
+    LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_DEBUG);
     // LogComponentEnable("AdaptiveTcp", LOG_LEVEL_INFO);
     LogComponentEnable("AdaptiveTcp", LOG_LEVEL_WARN);
 
@@ -81,7 +81,7 @@ main(int argc, char* argv[])
 
     int senderIndex = 0; // Index to keep track of sender-receiver pairs
     
-    std::vector<FlowData> flowData;
+    std::vector<std::shared_ptr<FlowData>> flowData;
     
     // Install the competing congestion control algorithms    
     for (int i = 0; i < CCA_COUNT; i++) {
@@ -134,9 +134,9 @@ main(int argc, char* argv[])
 
     // Compute throughput for each flow
     for (const auto& fd : flowData) {
-        double bytesReceived = fd.sink->GetTotalRx();
+        double bytesReceived = fd->sink->GetTotalRx();
         double throughput = (bytesReceived * 8) / (simulationTime * 1e6); // Throughput in Mbps
-        std::cout << "CCA: " << fd.cca << ", Throughput: " << throughput << " Mbps" << std::endl;
+        NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
     }
 
     // // Finalize MPI
@@ -152,7 +152,7 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                         double simulationTime,
                         int senderIndex,
                         ns3::TypeId tcpTypeId,
-                        std::vector<FlowData>& flowData)
+                        std::vector<std::shared_ptr<FlowData>>& flowData)
 {
     Ipv4AddressHelper address;
     
@@ -205,5 +205,79 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     Ptr<PacketSink> pktSink = DynamicCast<PacketSink>(receiverApps.Get(0));
 
     // Store flow data
-    flowData.push_back({pktSink, tcpTypeId.GetName()});
+    auto flow = std::make_shared<FlowData>();
+    flow->sink = pktSink;
+    flow->cca = tcpTypeId.GetName();
+    flow->app = DynamicCast<BulkSendApplication>(senderApps.Get(0));
+    NS_ASSERT_MSG(flow->app, "BulkSendApplication not found");
+
+    // Schedule throughput calculation
+    // double interval = 1.0; // Interval in seconds
+    // Simulator::Schedule(Seconds(1.0 + interval), &CalculateThroughput, &flow, interval, simulationTime);
+
+    // **Connect the cwnd and RTT trace sources**
+    // ConnectTraceSources(sender, &flow, senderIndex);
+    Simulator::Schedule(Seconds(1.1), &ConnectTraceSources, sender, flow.get(), senderIndex);
+
+    // Store the flow data
+    flowData.push_back(flow);
+}
+
+void ConnectTraceSources(Ptr<Node> sender, FlowData* flow, int senderIndex)
+{
+    // Construct the path to the socket used by the BulkSendApplication
+    NS_LOG_DEBUG("Connecting trace sources for flow " << senderIndex);
+    Ptr<Socket> socket = flow->app->GetSocket();
+
+    // If socket is null, reschedule for one second later
+    if (socket == nullptr) {
+        Simulator::Schedule(Seconds(1.0), &ConnectTraceSources, sender, flow, senderIndex);
+        return;
+    }
+
+    std::string path = "/NodeList/" + std::to_string(sender->GetId()) +
+                       "/$ns3::TcpL4Protocol/SocketList/0";
+
+    // Connect to the CongestionWindow and RTT trace sources
+    Config::ConnectWithoutContext(path + "/CongestionWindow",
+                                  MakeBoundCallback(&CwndTracer, flow));
+    Config::ConnectWithoutContext(path + "/RTT",
+                                  MakeBoundCallback(&RttTracer, flow));
+}
+
+static void
+CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd)
+{
+    Time now = Simulator::Now();
+    flow->stats.times.push_back(now.GetSeconds());
+    flow->stats.cwnds.push_back(newCwnd);
+}
+
+void
+RttTracer(FlowData* flow, Time oldRtt, Time newRtt)
+{
+    Time now = Simulator::Now();
+    flow->stats.times.push_back(now.GetSeconds());
+    flow->stats.rtts.push_back(newRtt.GetSeconds());
+}
+
+void
+CalculateThroughput(FlowData* flow, double interval, double simulationTime)
+{
+    static std::map<Ptr<PacketSink>, uint64_t> lastTotalRx;
+
+    Time now = Simulator::Now();
+    uint64_t totalBytes = flow->sink->GetTotalRx();
+    double throughput = (totalBytes - lastTotalRx[flow->sink]) * 8 / (interval * 1e6); // Mbps
+
+    // Collect data
+    flow->stats.times.push_back(now.GetSeconds());
+    flow->stats.throughputs.push_back(throughput);
+
+    lastTotalRx[flow->sink] = totalBytes;
+
+    // Schedule next throughput calculation
+    if (now.GetSeconds() < simulationTime) {
+        Simulator::Schedule(Seconds(interval), &CalculateThroughput, flow, interval, simulationTime);
+    }
 }

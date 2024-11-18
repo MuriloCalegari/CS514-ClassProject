@@ -34,9 +34,19 @@ static const std::array<CCAData, CCA_COUNT> ccaData = {
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
 
+struct FlowStats {
+    std::string cca;
+    std::vector<double> times;
+    std::vector<double> throughputs;
+    std::vector<uint32_t> cwnds;
+    std::vector<double> rtts;
+};
+
 struct FlowData {
     Ptr<PacketSink> sink;  // Pointer to the PacketSink application
     std::string cca;       // Name of the CCA used
+    Ptr<BulkSendApplication> app;
+    FlowStats stats;
 };
 
 void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
@@ -45,4 +55,15 @@ void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              double simulationTime,
                              int senderIndex,
                              ns3::TypeId tcpTypeId,
-                             std::vector<FlowData>& flowData);
+                             std::vector<std::shared_ptr<FlowData>>& flowData);
+
+static void
+CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd);
+
+static void
+RttTracer(FlowData* flow, Time oldRtt, Time newRtt);
+
+void
+CalculateThroughput(FlowData* flow, double interval, double simulationTime);
+
+void ConnectTraceSources(Ptr<Node> sender, FlowData* flow, int senderIndex);

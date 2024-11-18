@@ -21,5 +21,9 @@ If you encounter any errors building the project, consider cleaning the build di
 
 ```
 ./ns3 clean
-./ns3 configure
+./ns3 configure --enable-mpi
 ```
+
+### Changing the congestion control algorithm
+You may locate the code for the CCA under the ns-3.43 folder
+on /src/internet/model/adaptive-tcp.cc

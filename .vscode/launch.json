@@ -5,7 +5,7 @@
         "name": "Run ns-3 adaptive-tcp-test",
         "type": "cppdbg",
         "request": "launch",
-        "program": "${workspaceFolder}/ns-allinone-3.43/ns-3.43/build/scratch/adaptive-tcp/ns3.43-adaptive-tcp-test-default",
+        "program": "${workspaceFolder}/ns-allinone-3.43/ns-3.43/build/scratch/adaptive-tcp/ns3.43-adaptive-tcp-test-debug",
         "args": [],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}/ns-allinone-3.43/ns-3.43",
