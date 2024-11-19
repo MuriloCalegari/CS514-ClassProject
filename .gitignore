@@ -2,3 +2,4 @@
 .vscode/settings.json
 **/.DS_Store
 ns-allinone-3.43/ns-3.43/adaptive-tcp-test.json
+*.png

@@ -21,6 +21,16 @@
           "exceptions": true
         },
         "internalConsoleOptions": "openOnSessionStart"
-      }
+      },
+      {
+        "name": "Python: Run generate_graph.py",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/generate_graph.py",
+        "console": "integratedTerminal",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}/.venv/bin/python"
+        }
+    }
     ]
   }

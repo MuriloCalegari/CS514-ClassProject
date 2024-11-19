@@ -93,6 +93,16 @@
             ],
             "externalConsole": false,
             "MIMode": "lldb"
+        },
+        {
+            "name": "Python: Run generate_graph.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/generate_graph.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/bin/python"
+            }
         }
     ],
     "inputs": [
