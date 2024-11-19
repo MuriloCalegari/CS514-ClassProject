@@ -118,6 +118,9 @@ main(int argc, char* argv[])
                             TypeId::LookupByName("ns3::AdaptiveTcp"),
                             flowData);
 
+    // Store our AdaptiveTCPs flow data
+    auto adaptiveTcpFlow = flowData.back();
+
     NS_LOG_INFO("Initialize Global Routing.");
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
@@ -128,6 +131,14 @@ main(int argc, char* argv[])
     Simulator::Stop(Seconds(simulationTime + 5));
 
     ShowProgress progress (Seconds (5), std::cerr);
+
+    // Schedule the adaptive Tcp CCA switch
+    // Simulator::Schedule(
+    //     Seconds(15),
+    //     &setAdaptiveTcpCca,
+    //     adaptiveTcpFlow,
+    //     CCA::Illinois
+    // );
 
     Simulator::Run();
     Simulator::Destroy();
@@ -146,6 +157,20 @@ main(int argc, char* argv[])
     // MpiInterface::Disable();
 
     return 0;
+}
+
+// Change the AdaptiveTcp's CCA algorithm to an input one
+void
+setAdaptiveTcpCca(std::shared_ptr<FlowData> adaptiveTcpFlow, CCA new_cca) {
+    Ptr<Socket> tcpSocket = adaptiveTcpFlow->app->GetSocket();
+    NS_ASSERT_MSG(tcpSocket, "TcpSocket not found");
+
+    // Cast the Socket to TcpSocketBase
+    Ptr<TcpSocketBase> tcpSocketBase = DynamicCast<TcpSocketBase>(tcpSocket);
+    NS_ASSERT_MSG(tcpSocketBase, "TcpSocketBase not found");
+
+    // Set the congestion control algorithm on the socket
+    tcpSocketBase->SetCongestionControlAlgorithm(cca_ops[new_cca]);
 }
 
 void

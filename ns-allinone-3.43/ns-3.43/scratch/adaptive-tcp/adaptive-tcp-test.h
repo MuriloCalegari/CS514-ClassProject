@@ -18,6 +18,17 @@ enum CCA {
     CCA_COUNT
 };
 
+Ptr<TcpCongestionOps> cca_ops[] = {
+    CreateObject<TcpBbr>(),
+    CreateObject<TcpBic>(),
+    CreateObject<TcpCubic>(),
+    CreateObject<TcpHtcp>(),
+    CreateObject<TcpIllinois>(),
+    CreateObject<TcpNewReno>(),
+    CreateObject<TcpVegas>(),
+    CreateObject<TcpVeno>()
+};
+
 struct CCAData {
     int percentage;
     std::string tcpTypeId;
@@ -55,6 +66,9 @@ struct FlowData {
     FlowStats stats;
     uint64_t lastTotalRx = 0;  // Add this field to store the last total received bytes
 };
+
+void
+setAdaptiveTcpCca(std::shared_ptr<FlowData> adaptiveTcpFlow, CCA new_cca);
 
 void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              ns3::NodeContainer& bottleneck,
