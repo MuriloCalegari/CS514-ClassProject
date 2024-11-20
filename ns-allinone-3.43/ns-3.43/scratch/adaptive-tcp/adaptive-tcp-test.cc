@@ -45,12 +45,14 @@ main(int argc, char* argv[])
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
-    double senderCount = 8; // Default to 8 senders
+    double senderCount = 10; // Default to 8 senders
+    std::string bottleneckDelay = "2ms"; // Default to 2ms
 
     CommandLine cmd;
     cmd.AddValue("linkBandwidth", "Bandwidth of the middle link", linkBandwidth);
     cmd.AddValue("simulationTime", "Simulation runtime in seconds", simulationTime);
     cmd.AddValue("senderCount", "Number of senders", senderCount);
+    cmd.AddValue("delay", "Delay time of bottleneck link", bottleneckDelay);
     cmd.Parse(argc, argv);
 
     // Create sender, receiver, and bottleneck nodes
@@ -71,7 +73,7 @@ main(int argc, char* argv[])
     PointToPointHelper bottleneckLink;
     bottleneckLink.SetDeviceAttribute("DataRate", StringValue(linkBandwidth));
     // TODO parameterize the delay
-    bottleneckLink.SetChannelAttribute("Delay", StringValue("2ms"));
+    bottleneckLink.SetChannelAttribute("Delay", StringValue(bottleneckDelay));
     NetDeviceContainer bottleneckDevices = bottleneckLink.Install(bottleneck.Get(0), bottleneck.Get(1));
 
     // Assign IPs for the bottleneck link
@@ -86,14 +88,14 @@ main(int argc, char* argv[])
     
     // Install the competing congestion control algorithms    
     for (int i = 0; i < CCA_COUNT; i++) {
-        // int numSenders = ccaData[i].percentage / 100.0 * senderCount;
-        int numSenders = 1;
+        int numSenders = ccaData[i].percentage / 100.0 * senderCount;
+        // int numSenders = 1;
 
         if(numSenders == 0) continue;  // Skip if no senders for this CCA
 
         for (int j = 0; j < numSenders; j++) {
 
-            // if (senderIndex >= senderCount) break;  // Prevent going beyond available senders
+            if (senderIndex >= senderCount) break;  // Prevent going beyond available senders
 
             ns3::Ptr<ns3::Node> sender = senders.Get(senderIndex);
             ns3::Ptr<ns3::Node> receiver = receivers.Get(senderIndex);
@@ -133,12 +135,11 @@ main(int argc, char* argv[])
 
     ShowProgress progress (Seconds (5), std::cerr);
 
-    // Schedule the adaptive Tcp CCA switch
     // Simulator::Schedule(
     //     Seconds(15),
     //     &setAdaptiveTcpCca,
     //     adaptiveTcpFlow,
-    //     CCA::Illinois
+    //     CCA::Vegas
     // );
 
     Simulator::Run();

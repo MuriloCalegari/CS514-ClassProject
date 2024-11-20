@@ -35,13 +35,13 @@ struct CCAData {
 };
 
 static const std::array<CCAData, CCA_COUNT> ccaData = {
-    CCAData{1, "ns3::TcpBbr"},      // BBRv1
-    CCAData{1, "ns3::TcpBic"},       // BIC
-    CCAData{1, "ns3::TcpCubic"},    // CUBIC
-    CCAData{1, "ns3::TcpHtcp"},      // HTCP
-    CCAData{1, "ns3::TcpIllinois"},  // Illinois
-    CCAData{1, "ns3::TcpNewReno"},  // NewReno
-    CCAData{1, "ns3::TcpVegas"},     // Vegas
+    CCAData{17, "ns3::TcpBbr"},      // BBRv1
+    CCAData{4, "ns3::TcpBic"},       // BIC
+    CCAData{52, "ns3::TcpCubic"},    // CUBIC
+    CCAData{4, "ns3::TcpHtcp"},      // HTCP
+    CCAData{5, "ns3::TcpIllinois"},  // Illinois
+    CCAData{12, "ns3::TcpNewReno"},  // NewReno
+    CCAData{6, "ns3::TcpVegas"},     // Vegas
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
 
