@@ -40,7 +40,7 @@ def plot_dimension(data, dimension, sample_one_cca, output_file='plot.png'):
     plt.title(DIMENSION_INFO[dimension]['title'])
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'{dimension}_{output_file}')
+    plt.savefig(f'plots/{dimension}_{output_file}')
     # plt.show()
     plt.clf()  # Clear the current figure for the next plot
 

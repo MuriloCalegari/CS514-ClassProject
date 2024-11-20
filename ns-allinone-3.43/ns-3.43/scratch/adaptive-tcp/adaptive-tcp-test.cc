@@ -45,7 +45,7 @@ main(int argc, char* argv[])
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
-    double senderCount = 10; // Default to 10 senders
+    double senderCount = 8; // Default to 8 senders
 
     CommandLine cmd;
     cmd.AddValue("linkBandwidth", "Bandwidth of the middle link", linkBandwidth);
@@ -86,13 +86,14 @@ main(int argc, char* argv[])
     
     // Install the competing congestion control algorithms    
     for (int i = 0; i < CCA_COUNT; i++) {
-        int numSenders = ccaData[i].percentage / 100.0 * senderCount;
+        // int numSenders = ccaData[i].percentage / 100.0 * senderCount;
+        int numSenders = 1;
 
         if(numSenders == 0) continue;  // Skip if no senders for this CCA
 
         for (int j = 0; j < numSenders; j++) {
 
-            if (senderIndex >= senderCount) break;  // Prevent going beyond available senders
+            // if (senderIndex >= senderCount) break;  // Prevent going beyond available senders
 
             ns3::Ptr<ns3::Node> sender = senders.Get(senderIndex);
             ns3::Ptr<ns3::Node> receiver = receivers.Get(senderIndex);
@@ -196,6 +197,31 @@ saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData)
         for (const auto& dp : fd->stats.rtts)
         {
             flow["rtts"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.lastRtts)
+        {
+            flow["lastRtts"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.rtos)
+        {
+            flow["rtos"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.congestionStates)
+        {
+            flow["congestionStates"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.bytesInFlights)
+        {
+            flow["bytesInFlights"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.pacingRates)
+        {
+            flow["pacingRates"].push_back({dp.time, dp.value.GetBitRate()});
         }
 
         j.push_back(flow);
@@ -303,6 +329,16 @@ void ConnectTraceSources(Ptr<Node> sender, FlowData* flow, int senderIndex)
                                   MakeBoundCallback(&CwndTracer, flow));
     Config::ConnectWithoutContext(path + "/RTT",
                                   MakeBoundCallback(&RttTracer, flow));
+    Config::ConnectWithoutContext(path + "/LastRTT",
+                                  MakeBoundCallback(&LastRttTracer, flow));
+    Config::ConnectWithoutContext(path + "/RTO",
+                                  MakeBoundCallback(&RtoTracer, flow));
+    Config::ConnectWithoutContext(path + "/CongState",
+                                  MakeBoundCallback(&CongestionStateTracer, flow));
+    Config::ConnectWithoutContext(path + "/BytesInFlight",
+                                  MakeBoundCallback(&BytesInFlightTracer, flow));
+    Config::ConnectWithoutContext(path + "/PacingRate",
+                                    MakeBoundCallback(&PacingRateTracer, flow));
 }
 
 static void
@@ -317,6 +353,41 @@ RttTracer(FlowData* flow, Time oldRtt, Time newRtt)
 {
     Time now = Simulator::Now();
     flow->stats.rtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newRtt.GetMilliSeconds())});
+}
+
+void
+LastRttTracer(FlowData* flow, Time oldLastRtt, Time newLastRtt)
+{
+    Time now = Simulator::Now();
+    flow->stats.lastRtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newLastRtt.GetMilliSeconds())});
+}
+
+void
+RtoTracer(FlowData* flow, Time oldRto, Time newRto)
+{
+    Time now = Simulator::Now();
+    flow->stats.rtos.push_back({now.GetSeconds(), static_cast<uint32_t>(newRto.GetMilliSeconds())});
+}
+
+void
+CongestionStateTracer(FlowData* flow, TcpSocketState::TcpCongState_t oldState, TcpSocketState::TcpCongState_t newState)
+{
+    Time now = Simulator::Now();
+    flow->stats.congestionStates.push_back({now.GetSeconds(), static_cast<uint32_t>(newState)});
+}
+
+void
+BytesInFlightTracer(FlowData* flow, uint32_t oldBytesInFlight, uint32_t newBytesInFlight)
+{
+    Time now = Simulator::Now();
+    flow->stats.bytesInFlights.push_back({now.GetSeconds(), newBytesInFlight});
+}
+
+void
+PacingRateTracer(FlowData* flow, DataRate oldPacingRate, DataRate newPacingRate)
+{
+    Time now = Simulator::Now();
+    flow->stats.pacingRates.push_back({now.GetSeconds(), newPacingRate});
 }
 
 void

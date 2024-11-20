@@ -35,28 +35,29 @@ struct CCAData {
 };
 
 static const std::array<CCAData, CCA_COUNT> ccaData = {
-    CCAData{17, "ns3::TcpBbr"},      // BBRv1
-    CCAData{4, "ns3::TcpBic"},       // BIC
-    CCAData{52, "ns3::TcpCubic"},    // CUBIC
-    CCAData{4, "ns3::TcpHtcp"},      // HTCP
-    CCAData{5, "ns3::TcpIllinois"},  // Illinois
-    CCAData{12, "ns3::TcpNewReno"},  // NewReno
-    CCAData{6, "ns3::TcpVegas"},     // Vegas
+    CCAData{1, "ns3::TcpBbr"},      // BBRv1
+    CCAData{1, "ns3::TcpBic"},       // BIC
+    CCAData{1, "ns3::TcpCubic"},    // CUBIC
+    CCAData{1, "ns3::TcpHtcp"},      // HTCP
+    CCAData{1, "ns3::TcpIllinois"},  // Illinois
+    CCAData{1, "ns3::TcpNewReno"},  // NewReno
+    CCAData{1, "ns3::TcpVegas"},     // Vegas
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
 
+template<typename DataType>
 struct DataPoint {
     double time;
-    uint32_t value;  // Change from double to uint32_t
+    DataType value;
 
-    DataPoint(double t, uint32_t v) : time(t), value(v) {}
+    DataPoint(double t, DataType v) : time(t), value(v) {}
 };
 
 struct FlowStats {
     std::string cca;
-    std::vector<DataPoint> rtts;
-    std::vector<DataPoint> throughputs;
-    std::vector<DataPoint> cwnds;
+    std::vector<DataPoint<uint32_t>> rtts, throughputs, cwnds, lastRtts, srtts, rtos,
+                           congestionStates, bytesInFlights;
+    std::vector<DataPoint<DataRate>> pacingRates;
 };
 
 struct FlowData {
@@ -85,6 +86,21 @@ CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd);
 
 static void
 RttTracer(FlowData* flow, Time oldRtt, Time newRtt);
+
+static void
+LastRttTracer(FlowData* flow, Time oldLastRtt, Time newLastRtt);
+
+static void
+RtoTracer(FlowData* flow, Time oldRto, Time newRto);
+
+static void
+CongestionStateTracer(FlowData* flow, TcpSocketState::TcpCongState_t oldState, TcpSocketState::TcpCongState_t newState);
+
+static void
+BytesInFlightTracer(FlowData* flow, uint32_t oldBytesInFlight, uint32_t newBytesInFlight);
+
+static void
+PacingRateTracer(FlowData* flow, DataRate oldPacingRate, DataRate newPacingRate);
 
 void
 CalculateThroughput(FlowData* flow, double interval, double simulationTime);
