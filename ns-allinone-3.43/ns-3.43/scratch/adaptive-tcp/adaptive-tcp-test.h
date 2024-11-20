@@ -79,7 +79,7 @@ void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              ns3::TypeId tcpTypeId,
                              std::vector<std::shared_ptr<FlowData>>& flowData);
 
-void saveFlowDataToJson(std::__1::vector<std::__1::shared_ptr<FlowData>>& flowData);
+void saveFlowDataToJson(std::__1::vector<std::__1::shared_ptr<FlowData>>& flowData, std::string outputFileName);
 
 static void
 CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd);

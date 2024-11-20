@@ -45,7 +45,7 @@ def plot_dimension(data, dimension, sample_one_cca, output_file='plot.png'):
     plt.clf()  # Clear the current figure for the next plot
 
 def generate_graph(
-        json_file='ns-allinone-3.43/ns-3.43/adaptive-tcp-test.json',
+        json_file='ns-allinone-3.43/ns-3.43/100Mbps-2ms-50p.json',
         output_file='plot.png',
         dimension='all',
         sample_one_cca=True):

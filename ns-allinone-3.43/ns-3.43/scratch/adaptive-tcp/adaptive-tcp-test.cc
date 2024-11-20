@@ -45,15 +45,25 @@ main(int argc, char* argv[])
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
-    double senderCount = 10; // Default to 8 senders
+    double senderCount = 8; // Default to 8 senders
     std::string bottleneckDelay = "2ms"; // Default to 2ms
+    std::string buffer = "50p"; // Default to 50 packets
+    std::string outputFilename = "";
 
     CommandLine cmd;
     cmd.AddValue("linkBandwidth", "Bandwidth of the middle link", linkBandwidth);
     cmd.AddValue("simulationTime", "Simulation runtime in seconds", simulationTime);
     cmd.AddValue("senderCount", "Number of senders", senderCount);
     cmd.AddValue("delay", "Delay time of bottleneck link", bottleneckDelay);
+    cmd.AddValue("buffer", "Buffer size in packets", buffer);
+    cmd.AddValue("output", "Output file name", outputFilename);
     cmd.Parse(argc, argv);
+
+
+    // If we didn't specify an output filename, stitch together our own
+    if (outputFilename == "") {
+        outputFilename = linkBandwidth + "-" + bottleneckDelay + "-" + buffer;
+    }
 
     // Create sender, receiver, and bottleneck nodes
     // Create nodes
@@ -74,6 +84,8 @@ main(int argc, char* argv[])
     bottleneckLink.SetDeviceAttribute("DataRate", StringValue(linkBandwidth));
     // TODO parameterize the delay
     bottleneckLink.SetChannelAttribute("Delay", StringValue(bottleneckDelay));
+    bottleneckLink.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue(buffer)); // Example: 50 packets
+
     NetDeviceContainer bottleneckDevices = bottleneckLink.Install(bottleneck.Get(0), bottleneck.Get(1));
 
     // Assign IPs for the bottleneck link
@@ -88,8 +100,8 @@ main(int argc, char* argv[])
     
     // Install the competing congestion control algorithms    
     for (int i = 0; i < CCA_COUNT; i++) {
-        int numSenders = ccaData[i].percentage / 100.0 * senderCount;
-        // int numSenders = 1;
+        // int numSenders = ccaData[i].percentage / 100.0 * senderCount;
+        int numSenders = 1;
 
         if(numSenders == 0) continue;  // Skip if no senders for this CCA
 
@@ -153,7 +165,7 @@ main(int argc, char* argv[])
         NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
     }
 
-    saveFlowDataToJson(flowData);
+    saveFlowDataToJson(flowData, outputFilename);
 
     // // Finalize MPI
     // MpiInterface::Disable();
@@ -176,7 +188,7 @@ setAdaptiveTcpCca(std::shared_ptr<FlowData> adaptiveTcpFlow, CCA new_cca) {
 }
 
 void
-saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData)
+saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData, std::string outputFileName)
 {
     // Serialize the information in flowdata to a json file using the nlohmann json library
     nlohmann::json j;
@@ -228,7 +240,9 @@ saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData)
         j.push_back(flow);
     }
 
-    std::ofstream o("adaptive-tcp-test.json");
+    std::string final_out = outputFileName + ".json";
+
+    std::ofstream o(final_out);
     o << std::setw(4) << j << std::endl;
 }
 
@@ -260,6 +274,7 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     receiverLink.SetDeviceAttribute("DataRate",
                                     StringValue("10Gbps")); // High bandwidth for receiver links
     receiverLink.SetChannelAttribute("Delay", StringValue("1ms"));
+    
     NetDeviceContainer receiverDevices =
         receiverLink.Install(bottleneck.Get(1), receiver);
 
