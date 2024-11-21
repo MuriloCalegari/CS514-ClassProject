@@ -33,6 +33,20 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("AdaptiveTcpTest");
 
+// void delayChanger(PointToPointHelper *bottleneckLink) {
+//     bottleneckLink->SetDeviceAttribute("DataRate", StringValue("10Mbps"));
+//     bottleneckLink->SetChannelAttribute("Delay", StringValue("2ms"));
+
+//     DataRateValue dataRateValue;
+//     bottleneckLink->GetDeviceAttribute("DataRate", dataRateValue);
+
+//     // Convert to DataRate object
+//     DataRate dataRate = dataRateValue.Get();
+
+//     // Print the bandwidth
+//     std::cout << "BOTTLENECK LINK BANDWIDTH: " << dataRate.GetBitRate() << " bps" << std::endl;
+// }
+
 int
 main(int argc, char* argv[])
 {
@@ -45,13 +59,25 @@ main(int argc, char* argv[])
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
-    double senderCount = 10; // Default to 10 senders
+    double senderCount = 8; // Default to 8 senders
+    std::string bottleneckDelay = "2ms"; // Default to 2ms
+    std::string buffer = "50p"; // Default to 50 packets
+    std::string outputFilename = "";
 
     CommandLine cmd;
     cmd.AddValue("linkBandwidth", "Bandwidth of the middle link", linkBandwidth);
     cmd.AddValue("simulationTime", "Simulation runtime in seconds", simulationTime);
     cmd.AddValue("senderCount", "Number of senders", senderCount);
+    cmd.AddValue("delay", "Delay time of bottleneck link", bottleneckDelay);
+    cmd.AddValue("buffer", "Buffer size in packets", buffer);
+    cmd.AddValue("output", "Output file name", outputFilename);
     cmd.Parse(argc, argv);
+
+
+    // If we didn't specify an output filename, stitch together our own
+    if (outputFilename == "") {
+        outputFilename = linkBandwidth + "-" + bottleneckDelay + "-" + buffer;
+    }
 
     // Create sender, receiver, and bottleneck nodes
     // Create nodes
@@ -71,7 +97,9 @@ main(int argc, char* argv[])
     PointToPointHelper bottleneckLink;
     bottleneckLink.SetDeviceAttribute("DataRate", StringValue(linkBandwidth));
     // TODO parameterize the delay
-    bottleneckLink.SetChannelAttribute("Delay", StringValue("2ms"));
+    bottleneckLink.SetChannelAttribute("Delay", StringValue(bottleneckDelay));
+    bottleneckLink.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue(buffer)); // Example: 50 packets
+
     NetDeviceContainer bottleneckDevices = bottleneckLink.Install(bottleneck.Get(0), bottleneck.Get(1));
 
     // Assign IPs for the bottleneck link
@@ -86,7 +114,8 @@ main(int argc, char* argv[])
     
     // Install the competing congestion control algorithms    
     for (int i = 0; i < CCA_COUNT; i++) {
-        int numSenders = ccaData[i].percentage / 100.0 * senderCount;
+        // int numSenders = ccaData[i].percentage / 100.0 * senderCount;
+        int numSenders = 1;
 
         if(numSenders == 0) continue;  // Skip if no senders for this CCA
 
@@ -103,7 +132,8 @@ main(int argc, char* argv[])
                                     simulationTime,
                                     senderIndex,
                                     TypeId::LookupByName(ccaData[i].tcpTypeId),
-                                    flowData);
+                                    flowData,
+                                    false);
 
             senderIndex++;  // Move to the next sender-receiver pair
         }
@@ -115,8 +145,11 @@ main(int argc, char* argv[])
                             receivers.Get(senderIndex),
                             simulationTime,
                             senderIndex,
-                            TypeId::LookupByName("ns3::AdaptiveTcp"),
-                            flowData);
+                            TypeId::LookupByName("ns3::TcpCubic"),
+                            flowData, true);
+
+    // Store our AdaptiveTCPs flow data
+    auto adaptiveTcpFlow = flowData.back();
 
     NS_LOG_INFO("Initialize Global Routing.");
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -129,6 +162,20 @@ main(int argc, char* argv[])
 
     ShowProgress progress (Seconds (5), std::cerr);
 
+    // Simulator::Schedule(
+    //     Seconds(15),
+    //     &setAdaptiveTcpCca,
+    //     adaptiveTcpFlow,
+    //     CCA::Vegas
+    // );
+
+    // let's change the delay after 15s
+    // Simulator::Schedule(
+    //     Seconds(5),
+    //     &delayChanger,
+    //     &bottleneckLink
+    // );
+
     Simulator::Run();
     Simulator::Destroy();
     NS_LOG_INFO("Simulation completed.");
@@ -140,7 +187,7 @@ main(int argc, char* argv[])
         NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
     }
 
-    saveFlowDataToJson(flowData);
+    saveFlowDataToJson(flowData, outputFilename);
 
     // // Finalize MPI
     // MpiInterface::Disable();
@@ -148,8 +195,22 @@ main(int argc, char* argv[])
     return 0;
 }
 
+// Change the AdaptiveTcp's CCA algorithm to an input one
 void
-saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData)
+setAdaptiveTcpCca(std::shared_ptr<FlowData> adaptiveTcpFlow, CCA new_cca) {
+    Ptr<Socket> tcpSocket = adaptiveTcpFlow->app->GetSocket();
+    NS_ASSERT_MSG(tcpSocket, "TcpSocket not found");
+
+    // Cast the Socket to TcpSocketBase
+    Ptr<TcpSocketBase> tcpSocketBase = DynamicCast<TcpSocketBase>(tcpSocket);
+    NS_ASSERT_MSG(tcpSocketBase, "TcpSocketBase not found");
+
+    // Set the congestion control algorithm on the socket
+    tcpSocketBase->SetCongestionControlAlgorithm(cca_ops[new_cca]);
+}
+
+void
+saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData, std::string outputFileName)
 {
     // Serialize the information in flowdata to a json file using the nlohmann json library
     nlohmann::json j;
@@ -173,10 +234,37 @@ saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData)
             flow["rtts"].push_back({dp.time, dp.value});
         }
 
+        for (const auto& dp : fd->stats.lastRtts)
+        {
+            flow["lastRtts"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.rtos)
+        {
+            flow["rtos"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.congestionStates)
+        {
+            flow["congestionStates"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.bytesInFlights)
+        {
+            flow["bytesInFlights"].push_back({dp.time, dp.value});
+        }
+
+        for (const auto& dp : fd->stats.pacingRates)
+        {
+            flow["pacingRates"].push_back({dp.time, dp.value.GetBitRate()});
+        }
+
         j.push_back(flow);
     }
 
-    std::ofstream o("adaptive-tcp-test.json");
+    std::string final_out = outputFileName + ".json";
+
+    std::ofstream o(final_out);
     o << std::setw(4) << j << std::endl;
 }
 
@@ -187,7 +275,8 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                         double simulationTime,
                         int senderIndex,
                         ns3::TypeId tcpTypeId,
-                        std::vector<std::shared_ptr<FlowData>>& flowData)
+                        std::vector<std::shared_ptr<FlowData>>& flowData,
+                        bool isAdaptiveTcp)
 {
     Ipv4AddressHelper address;
     
@@ -208,6 +297,7 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     receiverLink.SetDeviceAttribute("DataRate",
                                     StringValue("10Gbps")); // High bandwidth for receiver links
     receiverLink.SetChannelAttribute("Delay", StringValue("1ms"));
+    
     NetDeviceContainer receiverDevices =
         receiverLink.Install(bottleneck.Get(1), receiver);
 
@@ -242,7 +332,7 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     // Store flow data
     auto flow = std::make_shared<FlowData>();
     flow->sink = pktSink;
-    flow->cca = tcpTypeId.GetName();
+    flow->cca = (isAdaptiveTcp ? "AdaptiveTcp" : tcpTypeId.GetName());
     flow->app = DynamicCast<BulkSendApplication>(senderApps.Get(0));
     NS_ASSERT_MSG(flow->app, "BulkSendApplication not found");
 
@@ -278,6 +368,16 @@ void ConnectTraceSources(Ptr<Node> sender, FlowData* flow, int senderIndex)
                                   MakeBoundCallback(&CwndTracer, flow));
     Config::ConnectWithoutContext(path + "/RTT",
                                   MakeBoundCallback(&RttTracer, flow));
+    Config::ConnectWithoutContext(path + "/LastRTT",
+                                  MakeBoundCallback(&LastRttTracer, flow));
+    Config::ConnectWithoutContext(path + "/RTO",
+                                  MakeBoundCallback(&RtoTracer, flow));
+    Config::ConnectWithoutContext(path + "/CongState",
+                                  MakeBoundCallback(&CongestionStateTracer, flow));
+    Config::ConnectWithoutContext(path + "/BytesInFlight",
+                                  MakeBoundCallback(&BytesInFlightTracer, flow));
+    Config::ConnectWithoutContext(path + "/PacingRate",
+                                    MakeBoundCallback(&PacingRateTracer, flow));
 }
 
 static void
@@ -292,6 +392,41 @@ RttTracer(FlowData* flow, Time oldRtt, Time newRtt)
 {
     Time now = Simulator::Now();
     flow->stats.rtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newRtt.GetMilliSeconds())});
+}
+
+void
+LastRttTracer(FlowData* flow, Time oldLastRtt, Time newLastRtt)
+{
+    Time now = Simulator::Now();
+    flow->stats.lastRtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newLastRtt.GetMilliSeconds())});
+}
+
+void
+RtoTracer(FlowData* flow, Time oldRto, Time newRto)
+{
+    Time now = Simulator::Now();
+    flow->stats.rtos.push_back({now.GetSeconds(), static_cast<uint32_t>(newRto.GetMilliSeconds())});
+}
+
+void
+CongestionStateTracer(FlowData* flow, TcpSocketState::TcpCongState_t oldState, TcpSocketState::TcpCongState_t newState)
+{
+    Time now = Simulator::Now();
+    flow->stats.congestionStates.push_back({now.GetSeconds(), static_cast<uint32_t>(newState)});
+}
+
+void
+BytesInFlightTracer(FlowData* flow, uint32_t oldBytesInFlight, uint32_t newBytesInFlight)
+{
+    Time now = Simulator::Now();
+    flow->stats.bytesInFlights.push_back({now.GetSeconds(), newBytesInFlight});
+}
+
+void
+PacingRateTracer(FlowData* flow, DataRate oldPacingRate, DataRate newPacingRate)
+{
+    Time now = Simulator::Now();
+    flow->stats.pacingRates.push_back({now.GetSeconds(), newPacingRate});
 }
 
 void

@@ -40,12 +40,12 @@ def plot_dimension(data, dimension, sample_one_cca, output_file='plot.png'):
     plt.title(DIMENSION_INFO[dimension]['title'])
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'{dimension}_{output_file}')
+    plt.savefig(f'plots/{dimension}_{output_file}')
     # plt.show()
     plt.clf()  # Clear the current figure for the next plot
 
 def generate_graph(
-        json_file='ns-allinone-3.43/ns-3.43/adaptive-tcp-test.json',
+        json_file='ns-allinone-3.43/ns-3.43/100Mbps-2ms-50p.json',
         output_file='plot.png',
         dimension='all',
         sample_one_cca=True):

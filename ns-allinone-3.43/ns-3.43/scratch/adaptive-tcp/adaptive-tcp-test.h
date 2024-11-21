@@ -18,6 +18,17 @@ enum CCA {
     CCA_COUNT
 };
 
+Ptr<TcpCongestionOps> cca_ops[] = {
+    CreateObject<TcpBbr>(),
+    CreateObject<TcpBic>(),
+    CreateObject<TcpCubic>(),
+    CreateObject<TcpHtcp>(),
+    CreateObject<TcpIllinois>(),
+    CreateObject<TcpNewReno>(),
+    CreateObject<TcpVegas>(),
+    CreateObject<TcpVeno>()
+};
+
 struct CCAData {
     int percentage;
     std::string tcpTypeId;
@@ -34,18 +45,19 @@ static const std::array<CCAData, CCA_COUNT> ccaData = {
     CCAData{1, "ns3::TcpVeno"}       // Veno
 };
 
+template<typename DataType>
 struct DataPoint {
     double time;
-    uint32_t value;  // Change from double to uint32_t
+    DataType value;
 
-    DataPoint(double t, uint32_t v) : time(t), value(v) {}
+    DataPoint(double t, DataType v) : time(t), value(v) {}
 };
 
 struct FlowStats {
     std::string cca;
-    std::vector<DataPoint> rtts;
-    std::vector<DataPoint> throughputs;
-    std::vector<DataPoint> cwnds;
+    std::vector<DataPoint<uint32_t>> rtts, throughputs, cwnds, lastRtts, srtts, rtos,
+                           congestionStates, bytesInFlights;
+    std::vector<DataPoint<DataRate>> pacingRates;
 };
 
 struct FlowData {
@@ -56,21 +68,40 @@ struct FlowData {
     uint64_t lastTotalRx = 0;  // Add this field to store the last total received bytes
 };
 
+void
+setAdaptiveTcpCca(std::shared_ptr<FlowData> adaptiveTcpFlow, CCA new_cca);
+
 void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              ns3::NodeContainer& bottleneck,
                              ns3::Ptr<ns3::Node> receiver,
                              double simulationTime,
                              int senderIndex,
                              ns3::TypeId tcpTypeId,
-                             std::vector<std::shared_ptr<FlowData>>& flowData);
+                             std::vector<std::shared_ptr<FlowData>>& flowData,
+                             bool isAdaptiveTcp);
 
-void saveFlowDataToJson(std::__1::vector<std::__1::shared_ptr<FlowData>>& flowData);
+void saveFlowDataToJson(std::__1::vector<std::__1::shared_ptr<FlowData>>& flowData, std::string outputFileName);
 
 static void
 CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd);
 
 static void
 RttTracer(FlowData* flow, Time oldRtt, Time newRtt);
+
+static void
+LastRttTracer(FlowData* flow, Time oldLastRtt, Time newLastRtt);
+
+static void
+RtoTracer(FlowData* flow, Time oldRto, Time newRto);
+
+static void
+CongestionStateTracer(FlowData* flow, TcpSocketState::TcpCongState_t oldState, TcpSocketState::TcpCongState_t newState);
+
+static void
+BytesInFlightTracer(FlowData* flow, uint32_t oldBytesInFlight, uint32_t newBytesInFlight);
+
+static void
+PacingRateTracer(FlowData* flow, DataRate oldPacingRate, DataRate newPacingRate);
 
 void
 CalculateThroughput(FlowData* flow, double interval, double simulationTime);
