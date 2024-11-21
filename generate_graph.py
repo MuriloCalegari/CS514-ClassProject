@@ -17,19 +17,40 @@ DIMENSION_INFO = {
     }
 }
 
+allowed_ccas = ["ns3::TcpCubic", "ns3::TcpBbr", "AdaptiveTcp", "ns3::AdaptiveTcp"]
+# allowed_ccas = ["ns3::AdaptiveTcp"]
+
+
 def plot_dimension(data, dimension, sample_one_cca, output_file='plot.png'):
     plt.figure(figsize=(10, 6))
     seen_ccas = set()
 
     for cca_data in data:
         cca = cca_data['cca']
-        if sample_one_cca and cca in seen_ccas:
+        if sample_one_cca and cca in seen_ccas or cca not in allowed_ccas:
             continue
         seen_ccas.add(cca)
         values = cca_data[dimension]
         
-        times = [point[0] for point in values]
-        dim_values = [point[1] for point in values]
+        combined_data = [[point[0], point[1]] for point in values]
+        # point[0] is a vallue in seconds. it can be very granular. i want to round it to the nearest millisecond and remove any points with duplicate point[0]
+        combined_data = list(dict.fromkeys([(round(point[0], 3), point[1]) for point in combined_data]))
+
+        times = []
+        dim_values = []
+        last_time = -100
+        delta = 0.03
+
+        for time, val in combined_data:
+            if time < last_time + delta: continue
+
+            last_time = time
+
+            times.append(time)
+            dim_values.append(val)
+
+        # times = [point[0] for point in combined_data]
+        # dim_values = [point[1] for point in combined_data]
         
         opacity = 1.0 if cca == 'ns3::AdaptiveTcp' else 0.5
 
@@ -45,7 +66,7 @@ def plot_dimension(data, dimension, sample_one_cca, output_file='plot.png'):
     plt.clf()  # Clear the current figure for the next plot
 
 def generate_graph(
-        json_file='ns-allinone-3.43/ns-3.43/100Mbps-2ms-50p.json',
+        json_file='ns-allinone-3.43/ns-3.43/50Mbps-2ms-200p.json',
         output_file='plot.png',
         dimension='all',
         sample_one_cca=True):

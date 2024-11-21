@@ -53,6 +53,8 @@ main(int argc, char* argv[])
     // // Initialize MPI
     // MpiInterface::Enable(&argc, &argv);
 
+    // LogComponentEnable("TcpCubic", LOG_LEVEL_DEBUG);
+
     LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_DEBUG);
     // LogComponentEnable("AdaptiveTcp", LOG_LEVEL_INFO);
     LogComponentEnable("AdaptiveTcp", LOG_LEVEL_WARN);
@@ -266,6 +268,11 @@ saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData, std::string
 
     std::ofstream o(final_out);
     o << std::setw(4) << j << std::endl;
+}
+
+// Every 5 seconds, sample the throughput
+void sampling_switcher() {
+    
 }
 
 void
