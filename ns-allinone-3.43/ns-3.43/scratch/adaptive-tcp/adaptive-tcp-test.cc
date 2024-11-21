@@ -33,6 +33,20 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("AdaptiveTcpTest");
 
+// void delayChanger(PointToPointHelper *bottleneckLink) {
+//     bottleneckLink->SetDeviceAttribute("DataRate", StringValue("10Mbps"));
+//     bottleneckLink->SetChannelAttribute("Delay", StringValue("2ms"));
+
+//     DataRateValue dataRateValue;
+//     bottleneckLink->GetDeviceAttribute("DataRate", dataRateValue);
+
+//     // Convert to DataRate object
+//     DataRate dataRate = dataRateValue.Get();
+
+//     // Print the bandwidth
+//     std::cout << "BOTTLENECK LINK BANDWIDTH: " << dataRate.GetBitRate() << " bps" << std::endl;
+// }
+
 int
 main(int argc, char* argv[])
 {
@@ -118,7 +132,8 @@ main(int argc, char* argv[])
                                     simulationTime,
                                     senderIndex,
                                     TypeId::LookupByName(ccaData[i].tcpTypeId),
-                                    flowData);
+                                    flowData,
+                                    false);
 
             senderIndex++;  // Move to the next sender-receiver pair
         }
@@ -130,8 +145,8 @@ main(int argc, char* argv[])
                             receivers.Get(senderIndex),
                             simulationTime,
                             senderIndex,
-                            TypeId::LookupByName("ns3::AdaptiveTcp"),
-                            flowData);
+                            TypeId::LookupByName("ns3::TcpCubic"),
+                            flowData, true);
 
     // Store our AdaptiveTCPs flow data
     auto adaptiveTcpFlow = flowData.back();
@@ -152,6 +167,13 @@ main(int argc, char* argv[])
     //     &setAdaptiveTcpCca,
     //     adaptiveTcpFlow,
     //     CCA::Vegas
+    // );
+
+    // let's change the delay after 15s
+    // Simulator::Schedule(
+    //     Seconds(5),
+    //     &delayChanger,
+    //     &bottleneckLink
     // );
 
     Simulator::Run();
@@ -253,7 +275,8 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                         double simulationTime,
                         int senderIndex,
                         ns3::TypeId tcpTypeId,
-                        std::vector<std::shared_ptr<FlowData>>& flowData)
+                        std::vector<std::shared_ptr<FlowData>>& flowData,
+                        bool isAdaptiveTcp)
 {
     Ipv4AddressHelper address;
     
@@ -309,7 +332,7 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     // Store flow data
     auto flow = std::make_shared<FlowData>();
     flow->sink = pktSink;
-    flow->cca = tcpTypeId.GetName();
+    flow->cca = (isAdaptiveTcp ? "AdaptiveTcp" : tcpTypeId.GetName());
     flow->app = DynamicCast<BulkSendApplication>(senderApps.Get(0));
     NS_ASSERT_MSG(flow->app, "BulkSendApplication not found");
 

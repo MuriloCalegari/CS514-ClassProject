@@ -77,7 +77,8 @@ void setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
                              double simulationTime,
                              int senderIndex,
                              ns3::TypeId tcpTypeId,
-                             std::vector<std::shared_ptr<FlowData>>& flowData);
+                             std::vector<std::shared_ptr<FlowData>>& flowData,
+                             bool isAdaptiveTcp);
 
 void saveFlowDataToJson(std::__1::vector<std::__1::shared_ptr<FlowData>>& flowData, std::string outputFileName);
 
