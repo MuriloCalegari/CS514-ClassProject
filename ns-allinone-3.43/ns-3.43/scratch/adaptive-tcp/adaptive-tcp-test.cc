@@ -61,7 +61,7 @@ main(int argc, char* argv[])
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
-    double senderCount = 8; // Default to 8 senders
+    double senderCount = 7; // Default to 8 senders
     std::string bottleneckDelay = "2ms"; // Default to 2ms
     std::string buffer = "50p"; // Default to 50 packets
     std::string outputFilename = "";
@@ -183,9 +183,23 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Simulation completed.");
 
     // Compute throughput for each flow
+    // for (const auto& fd : flowData) {
+    //     double bytesReceived = fd->sink->GetTotalRx();
+    //     double throughput = (bytesReceived * 8) / ((simulationTime - 1) * 1048576); // Throughput in Mbps
+    //     NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
+    // }
+
     for (const auto& fd : flowData) {
         double bytesReceived = fd->sink->GetTotalRx();
-        double throughput = (bytesReceived * 8) / (simulationTime * 1e6); // Throughput in Mbps
+        unsigned long long sum = 0;
+        for (const auto &val : fd->stats.throughputs) {
+            sum += val.value;
+        }
+
+        // Throughput in Mbps
+        long double throughput = sum / (int) fd->stats.throughputs.size() / 1e3;
+
+        // double throughput = (bytesReceived * 8) / (simulationTime * 1e6); // Throughput in Mbps
         NS_LOG_INFO("CCA: " << fd->cca << ", Throughput: " << throughput << " Mbps");
     }
 
@@ -339,12 +353,12 @@ setPairGoingThroughLink(ns3::Ptr<ns3::Node> sender,
     // Store flow data
     auto flow = std::make_shared<FlowData>();
     flow->sink = pktSink;
-    flow->cca = (isAdaptiveTcp ? "AdaptiveTcp" : tcpTypeId.GetName());
+    flow->cca = (isAdaptiveTcp ? "ns3::TcpCubic" : tcpTypeId.GetName());
     flow->app = DynamicCast<BulkSendApplication>(senderApps.Get(0));
     NS_ASSERT_MSG(flow->app, "BulkSendApplication not found");
 
     // Schedule throughput calculation
-    double interval = 1.0; // Interval in seconds
+    double interval = 1; // Interval in seconds
     Simulator::Schedule(Seconds(0), &CalculateThroughput, flow.get(), interval, simulationTime);
 
     // **Connect the cwnd and RTT trace sources**
@@ -445,6 +459,8 @@ CalculateThroughput(FlowData* flow, double interval, double simulationTime)
 
     // Collect data
     flow->stats.throughputs.push_back({now.GetSeconds(), static_cast<uint32_t>(throughput)});
+
+    // std::cout << static_cast<uint32_t>(throughput) << "\n";
 
     flow->lastTotalRx = totalBytes;
 
