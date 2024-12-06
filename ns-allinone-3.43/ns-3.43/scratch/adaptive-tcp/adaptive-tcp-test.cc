@@ -25,7 +25,7 @@
 #include "ns3/netanim-module.h"
 #include "adaptive-tcp-test.h"
 #include "lib/json.h"
-// #include "ns3/mpi-interface.h"
+//#include "ns3/mpi-interface.h"
 
 #include <vector>
 
@@ -51,11 +51,12 @@ int
 main(int argc, char* argv[])
 {
     // // Initialize MPI
-    // MpiInterface::Enable(&argc, &argv);
+//    MpiInterface::Enable(&argc, &argv);
 
     LogComponentEnable("AdaptiveTcpTest", LOG_LEVEL_DEBUG);
     // LogComponentEnable("AdaptiveTcp", LOG_LEVEL_INFO);
     LogComponentEnable("AdaptiveTcp", LOG_LEVEL_WARN);
+    LogComponentEnable("TcpCubic", LOG_LEVEL_DEBUG);
 
     std::string linkBandwidth = "1000Mbps"; // Default to 1Gbps
     double simulationTime = 60.0; // Default to 1 minutes
@@ -190,7 +191,7 @@ main(int argc, char* argv[])
     saveFlowDataToJson(flowData, outputFilename);
 
     // // Finalize MPI
-    // MpiInterface::Disable();
+//    MpiInterface::Disable();
 
     return 0;
 }
@@ -210,7 +211,7 @@ setAdaptiveTcpCca(std::shared_ptr<FlowData> adaptiveTcpFlow, CCA new_cca) {
 }
 
 void
-saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData, std::string outputFileName)
+    saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData, std::string outputFileName)
 {
     // Serialize the information in flowdata to a json file using the nlohmann json library
     nlohmann::json j;
@@ -227,6 +228,16 @@ saveFlowDataToJson(std::vector<std::shared_ptr<FlowData>>& flowData, std::string
         for (const auto& dp : fd->stats.cwnds)
         {
             flow["cwnds"].push_back({dp.time, dp.value});
+
+            // Print if time is greater than 5ms
+
+            if(fd->cca == "ns3::TcpCubic") {
+                std::cout << "";
+            }
+
+            if(dp.time > 5 && fd->cca == "ns3::TcpCubic") {
+                std::cout << "";
+            }
         }
 
         for (const auto& dp : fd->stats.rtts)
@@ -384,49 +395,49 @@ static void
 CwndTracer(FlowData* flow, uint32_t oldCwnd, uint32_t newCwnd)
 {
     Time now = Simulator::Now();
-    flow->stats.cwnds.push_back({now.GetSeconds(), newCwnd});
+    flow->stats.cwnds.emplace_back(now.GetSeconds(), newCwnd);
 }
 
 void
 RttTracer(FlowData* flow, Time oldRtt, Time newRtt)
 {
     Time now = Simulator::Now();
-    flow->stats.rtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newRtt.GetMilliSeconds())});
+    flow->stats.rtts.emplace_back(now.GetSeconds(), static_cast<uint32_t>(newRtt.GetMilliSeconds()));
 }
 
 void
 LastRttTracer(FlowData* flow, Time oldLastRtt, Time newLastRtt)
 {
     Time now = Simulator::Now();
-    flow->stats.lastRtts.push_back({now.GetSeconds(), static_cast<uint32_t>(newLastRtt.GetMilliSeconds())});
+    flow->stats.lastRtts.emplace_back(now.GetSeconds(), static_cast<uint32_t>(newLastRtt.GetMilliSeconds()));
 }
 
 void
 RtoTracer(FlowData* flow, Time oldRto, Time newRto)
 {
     Time now = Simulator::Now();
-    flow->stats.rtos.push_back({now.GetSeconds(), static_cast<uint32_t>(newRto.GetMilliSeconds())});
+    flow->stats.rtos.emplace_back(now.GetSeconds(), static_cast<uint32_t>(newRto.GetMilliSeconds()));
 }
 
 void
 CongestionStateTracer(FlowData* flow, TcpSocketState::TcpCongState_t oldState, TcpSocketState::TcpCongState_t newState)
 {
     Time now = Simulator::Now();
-    flow->stats.congestionStates.push_back({now.GetSeconds(), static_cast<uint32_t>(newState)});
+    flow->stats.congestionStates.emplace_back(now.GetSeconds(), static_cast<uint32_t>(newState));
 }
 
 void
 BytesInFlightTracer(FlowData* flow, uint32_t oldBytesInFlight, uint32_t newBytesInFlight)
 {
     Time now = Simulator::Now();
-    flow->stats.bytesInFlights.push_back({now.GetSeconds(), newBytesInFlight});
+    flow->stats.bytesInFlights.emplace_back(now.GetSeconds(), newBytesInFlight);
 }
 
 void
 PacingRateTracer(FlowData* flow, DataRate oldPacingRate, DataRate newPacingRate)
 {
     Time now = Simulator::Now();
-    flow->stats.pacingRates.push_back({now.GetSeconds(), newPacingRate});
+    flow->stats.pacingRates.emplace_back(now.GetSeconds(), newPacingRate);
 }
 
 void
@@ -437,7 +448,7 @@ CalculateThroughput(FlowData* flow, double interval, double simulationTime)
     double throughput = (totalBytes - flow->lastTotalRx) * 8 / (interval * 1e3); // Kbps
 
     // Collect data
-    flow->stats.throughputs.push_back({now.GetSeconds(), static_cast<uint32_t>(throughput)});
+    flow->stats.throughputs.emplace_back(now.GetSeconds(), static_cast<uint32_t>(throughput));
 
     flow->lastTotalRx = totalBytes;
 

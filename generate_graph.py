@@ -56,7 +56,7 @@ def generate_graph(
     dimensions = ['cwnds', 'throughputs', 'rtts']
     if dimension == 'all':
         for dim in dimensions:
-            plot_dimension(data, dim, sample_one_cca)
+            plot_dimension(data, dim, sample_one_cca, output_file)
     else:
         plot_dimension(data, dimension, sample_one_cca, output_file)
 
